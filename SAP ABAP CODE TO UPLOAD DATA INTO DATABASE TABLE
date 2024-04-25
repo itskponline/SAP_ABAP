@@ -1,0 +1,348 @@
+*SAP ABAP CODE FOR UPLOAD DATA INTO DATABASE USING MODIFY 
+*In this Object we creating sap abap code for upload birthdate 
+REPORT zsd_dob_data_upload.
+TABLES: sscrfields.
+
+TYPES : BEGIN OF ty_data,
+          dealer_code   TYPE kunnr,
+*          dealer_name  TYPE name1,
+          dob           TYPE dats,
+          customer_type TYPE string,
+          text1         TYPE char100,
+          text2         TYPE char100,
+        END OF ty_data.
+
+TYPES : BEGIN OF t_dwn,
+          col1 TYPE string,
+          col2 TYPE string,
+          col3 TYPE string,
+          col4 TYPE string,
+          col5 TYPE string,
+          col6 TYPE string,
+          col7 TYPE string,
+        END OF t_dwn.
+*
+*--------------------------------------------------------------------*
+* DATA DECLARATION
+*--------------------------------------------------------------------*
+
+DATA: lt_dwn TYPE STANDARD TABLE OF  t_dwn,
+      wa_dwn TYPE t_dwn.
+
+DATA: lt_upload TYPE STANDARD TABLE OF ty_data.
+DATA:lv_filename TYPE string,
+     path        TYPE string,
+     fullpath    TYPE string.
+DATA: git_data TYPE STANDARD TABLE OF zsd_dealer_dob,
+      gwa_data TYPE zsd_dealer_dob.
+
+TYPES : BEGIN OF ty_output.
+          INCLUDE TYPE zsd_dealer_dob.
+TYPES :   message TYPE string.
+TYPES : END OF ty_output.
+
+DATA : lwa_output TYPE ty_output,
+       lt_output  TYPE STANDARD TABLE OF ty_output.
+
+DATA: lt_type TYPE truxs_t_text_data.
+*--------------------------------------------------------------------*
+* Selection screen
+*--------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+  PARAMETERS: p_file TYPE localfile.
+SELECTION-SCREEN END OF BLOCK b1.
+*--------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE TEXT-002.
+  SELECTION-SCREEN PUSHBUTTON 2(30) TEXT-003 USER-COMMAND btn.
+SELECTION-SCREEN END OF BLOCK b3.
+*--------------------------------------------------------------------*
+AT SELECTION-SCREEN.
+
+  IF sscrfields-ucomm = 'BTN'.
+    CALL METHOD cl_gui_frontend_services=>file_save_dialog
+      EXPORTING
+        window_title              = 'Choose File path'
+        default_extension         = 'XLS'
+        default_file_name         = 'Excel Date Of Birth Template'
+      CHANGING
+        filename                  = lv_filename
+        path                      = path
+        fullpath                  = fullpath
+      EXCEPTIONS
+        cntl_error                = 1
+        error_no_gui              = 2
+        not_supported_by_gui      = 3
+        invalid_default_file_name = 4
+        OTHERS                    = 5.
+
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+         WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+
+    ELSE.
+
+      CLEAR: lt_dwn, wa_dwn.
+      wa_dwn-col1 = 'DEALER_CODE'.
+*      wa_dwn-col2 = 'DEALER_NAME'.
+      wa_dwn-col2 = 'DOB(DD.MM.YYYY)'.
+      wa_dwn-col3 = 'CUSTOMER_TYPE(Dealer/Retailer/Plumber)'.
+      wa_dwn-col4 = 'Dealer Owner Name'.
+      wa_dwn-col5 = 'TEXT2'.
+      APPEND wa_dwn TO lt_dwn[].
+      CLEAR wa_dwn.
+
+      CALL METHOD cl_gui_frontend_services=>gui_download
+        EXPORTING
+          filename                = lv_filename
+          write_field_separator   = 'X'
+        CHANGING
+          data_tab                = lt_dwn[]
+        EXCEPTIONS
+          file_write_error        = 1
+          no_batch                = 2
+          gui_refuse_filetransfer = 3
+          invalid_type            = 4
+          no_authority            = 5
+          unknown_error           = 6
+          header_not_allowed      = 7
+          separator_not_allowed   = 8
+          filesize_not_allowed    = 9
+          header_too_long         = 10
+          dp_error_create         = 11
+          dp_error_send           = 12
+          dp_error_write          = 13
+          unknown_dp_error        = 14
+          access_denied           = 15
+          dp_out_of_memory        = 16
+          disk_full               = 17
+          dp_timeout              = 18
+          file_not_found          = 19
+          dataprovider_exception  = 20
+          control_flush_error     = 21
+          not_supported_by_gui    = 22
+          error_no_gui            = 23.
+
+      IF sy-subrc <> 0.
+*         Implement suitable error handling here
+      ENDIF.
+
+    ENDIF.
+    EXIT.
+  ENDIF.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      program_name  = syst-cprog
+      dynpro_number = syst-dynnr
+      field_name    = 'p_file'
+    IMPORTING
+      file_name     = p_file.
+
+START-OF-SELECTION.
+
+  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+    EXPORTING
+*     I_FIELD_SEPERATOR    = I_FIELD_SEPERATOR
+      i_line_header        = abap_true
+      i_tab_raw_data       = lt_type
+      i_filename           = p_file
+    TABLES
+      i_tab_converted_data = lt_upload[]
+    EXCEPTIONS
+      conversion_failed    = 1.
+  IF sy-subrc NE 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+   WITH sy-msgv1 sy-msgv2.
+  ENDIF.
+
+  IF lt_upload IS NOT INITIAL .
+    LOOP AT lt_upload ASSIGNING FIELD-SYMBOL(<lfs_upload>).
+
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = <lfs_upload>-dealer_code
+        IMPORTING
+          output = <lfs_upload>-dealer_code.
+
+    ENDLOOP.
+    IF lt_upload[] IS NOT INITIAL.
+      SELECT * FROM zsd_dealer_dob
+        FOR ALL ENTRIES IN @lt_upload
+        WHERE dealer_code = @lt_upload-dealer_code
+        INTO TABLE @DATA(lt_existing_data).
+
+      SELECT *
+        FROM kna1
+        INTO TABLE @DATA(lt_kna1_new)
+        FOR ALL ENTRIES IN @lt_upload
+        WHERE kunnr = @lt_upload-dealer_code
+         AND   ktokd = 'Z012'.
+    ENDIF.
+    DELETE lt_upload WHERE dealer_code IS INITIAL OR dob IS INITIAL.
+  ENDIF.
+**--------------------------------------------------------------------*
+  IF <lfs_upload> IS ASSIGNED.
+    UNASSIGN <lfs_upload>.
+  ENDIF.
+
+
+**--------------------------------------------------------------------*
+  LOOP AT lt_upload ASSIGNING <lfs_upload>.
+    gwa_data-dealer_code   = <lfs_upload>-dealer_code.
+*    gwa_data-dealer_name   = <lfs_upload>-dealer_name.
+    gwa_data-dob           = <lfs_upload>-dob.
+    gwa_data-customer_type = <lfs_upload>-customer_type.
+    gwa_data-dealer_owner_name         = <lfs_upload>-text1.
+    gwa_data-text2         = <lfs_upload>-text2.
+    READ TABLE lt_existing_data INTO DATA(lwa_existing_data) WITH KEY dealer_code = gwa_data-dealer_code.
+    IF sy-subrc IS INITIAL.
+      gwa_data-created_by    = lwa_existing_data-created_by.
+      gwa_data-created_on    = lwa_existing_data-created_on.
+      gwa_data-created_at    = lwa_existing_data-created_at.
+      gwa_data-changed_by    = sy-uname.
+      gwa_data-changed_on    = sy-datum.
+      gwa_data-changed_at    = sy-uzeit.
+    ELSE.
+      gwa_data-created_by    = sy-uname.
+      gwa_data-created_on    = sy-datum.
+      gwa_data-created_at    = sy-uzeit.
+    ENDIF.
+
+    IF gwa_data-dealer_code IS INITIAL.
+      lwa_output-message = 'Dealer code is mandatory'.
+    ELSE.
+      READ TABLE lt_kna1_new INTO DATA(lwa_kna1) WITH KEY kunnr = gwa_data-dealer_code.
+      IF sy-subrc IS NOT INITIAL.
+        lwa_output-message = 'Dealer code is not valid'.
+      ELSE.
+*        gwa_data-dealer_name = lwa_kna1-kunnr.
+        gwa_data-dealer_name = lwa_kna1-name1.
+      ENDIF.
+    ENDIF.
+    MOVE-CORRESPONDING gwa_data TO lwa_output.
+
+    IF gwa_data-dob IS INITIAL.
+      IF lwa_output-message IS NOT INITIAL.
+        CONCATENATE lwa_output-message 'DOB is mandatory' INTO lwa_output-message SEPARATED BY ','.
+      ELSE.
+        lwa_output-message = 'DOB is mandatory.'.
+      ENDIF.
+
+      CALL FUNCTION 'DATE_CHECK_PLAUSIBILITY'
+        EXPORTING
+          date                      = lwa_output-dob
+        EXCEPTIONS
+          plausibility_check_failed = 1
+          OTHERS                    = 2.
+      IF sy-subrc <> 0.
+*        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4 INTO lv_message.
+        IF lwa_output-message IS NOT INITIAL.
+          CONCATENATE lwa_output-message 'DOB not in format DDMMYYYY' INTO lwa_output-message SEPARATED BY ','.
+        ELSE.
+          lwa_output-message = 'DOB not in format DDMMYYYY'.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    DATA(lv_cust_type) = gwa_data-customer_type.
+    CONDENSE lv_cust_type.
+    TRANSLATE lv_cust_type TO UPPER CASE.
+    IF lv_cust_type is INITIAL or
+       lv_cust_type NE 'DEALER' AND
+       lv_cust_type NE 'PLUMBER' AND
+       lv_cust_type NE 'RETAILER'   .
+      lwa_output-message = 'Plase Change The Customer Type It should be Dealer/Plumber/Retailer '   .
+*      MESSAGE 'Error' TYPE 'E'.
+    ENDIF.
+    CLEAR lv_cust_type.
+
+    IF lwa_output-message IS INITIAL.
+      APPEND gwa_data TO git_data.
+    ENDIF.
+    APPEND lwa_output TO lt_output.
+    CLEAR : lwa_output, gwa_data.
+  ENDLOOP.
+*--------------------------------------------------------------------*
+  IF <lfs_upload> IS ASSIGNED.
+    UNASSIGN <lfs_upload>.
+  ENDIF.
+  IF git_data IS NOT INITIAL.
+    MODIFY zsd_dealer_dob FROM TABLE git_data.
+    IF sy-subrc = 0.
+      COMMIT WORK.
+      MESSAGE 'Valid data successfully updated.' TYPE 'S'.
+    ENDIF.
+  ENDIF.
+*--------------------------------------------------------------------*
+  IF lt_output IS NOT INITIAL.
+    DATA: gr_alv TYPE REF TO cl_salv_table.
+    DATA: lr_columns TYPE REF TO cl_salv_columns_table.
+
+    DATA: lo_columns TYPE REF TO cl_salv_columns,
+          lo_column  TYPE REF TO cl_salv_column_table.
+
+    TRY.
+        CALL METHOD cl_salv_table=>factory
+          EXPORTING
+            list_display = if_salv_c_bool_sap=>false
+          IMPORTING
+            r_salv_table = gr_alv
+          CHANGING
+            t_table      = lt_output.
+
+* Fit the columns
+        lo_columns = gr_alv->get_columns( ).
+        lo_columns->set_optimize( 'X' ).
+
+        TRY.
+            lo_column ?= lo_columns->get_column( 'DEALER_CODE' ).
+            lo_column->set_long_text( 'Dealer code' ).
+            lo_column->set_medium_text( 'Dealer code' ).
+            lo_column->set_short_text( 'Dealer cd' ).
+
+            lo_column ?= lo_columns->get_column( 'DEALER_NAME' ).
+            lo_column->set_long_text( 'Dealer Name' ).
+            lo_column->set_medium_text( 'Dealer Name' ).
+            lo_column->set_short_text( 'Dealer Nm.' ).
+
+
+            lo_column ?= lo_columns->get_column( 'DOB' ).
+            lo_column->set_long_text( 'Date of birth' ).
+            lo_column->set_medium_text( 'Date of birth' ).
+            lo_column->set_short_text( 'DOB' ).
+
+
+            lo_column ?= lo_columns->get_column( 'Customer_Type' ).
+            lo_column->set_long_text( 'Customer_Type' ).
+            lo_column->set_medium_text( 'Customer_Type' ).
+            lo_column->set_short_text( 'Customer_T' ).
+
+
+            lo_column ?= lo_columns->get_column( 'dealer_owner_name' ).
+            lo_column->set_long_text( 'dealer_owner_name' ).
+            lo_column->set_medium_text( 'dealer_owner_na' ).
+            lo_column->set_short_text( 'dealer_o' ).
+
+            lo_column ?= lo_columns->get_column( 'TEXT2' ).
+            lo_column->set_long_text( 'Text2' ).
+            lo_column->set_medium_text( 'Text2' ).
+            lo_column->set_short_text( 'Text2' ).
+
+
+            lo_column ?= lo_columns->get_column( 'Message' ). " Find the 'MAKTX' column ans change attributes
+            lo_column->set_long_text( 'Message' ).
+            lo_column->set_medium_text( 'Message' ).
+            lo_column->set_short_text( 'Message' ).
+          CATCH cx_salv_not_found.
+        ENDTRY.
+
+*     display ALV
+        gr_alv->display( ).
+      CATCH cx_salv_msg.
+
+    ENDTRY.
+  ENDIF.
+
+*--------------------------------------------------------------------*
