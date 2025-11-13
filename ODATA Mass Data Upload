@@ -1,0 +1,66 @@
+method RPSCO_GET_ENTITYSET.
+**TRY.
+"This Code is for DPX_EXT for OData service for FULL load 
+*CALL METHOD SUPER->RPSCO_GET_ENTITYSET
+*  EXPORTING
+*    IV_ENTITY_NAME           =
+*    IV_ENTITY_SET_NAME       =
+*    IV_SOURCE_NAME           =
+*    IT_FILTER_SELECT_OPTIONS =
+*    IS_PAGING                =
+*    IT_KEY_TAB               =
+*    IT_NAVIGATION_PATH       =
+*    IT_ORDER                 =
+*    IV_FILTER_STRING         =
+*    IV_SEARCH_STRING         =
+**    IO_TECH_REQUEST_CONTEXT  =
+**  IMPORTING
+**    ET_ENTITYSET             =
+**    ES_RESPONSE_CONTEXT      =
+*    .
+** CATCH /IWBEP/CX_MGW_BUSI_EXCEPTION .
+** CATCH /IWBEP/CX_MGW_TECH_EXCEPTION .
+**ENDTRY.
+   DATA: lt_rpsco TYPE TABLE OF rpsco,
+        ls_rpsco_S like lt_rpsco,
+        ls_rpsco TYPE ZCL_ZCOMPASS_PS_RPSCO1_MPC_EXT=>TS_RPSCO,
+        lv_cursor TYPE cursor,
+        lv_where type string,
+        lv_top TYPE i,
+        lv_skip TYPE i,
+        ls_filter_select_option TYPE /IWBEP/S_MGW_SELECT_OPTION.
+  field-symbols: <lfs_rpsco> type rpsco.
+**********************************************************************
+  lv_top = is_paging-top.
+  lv_skip = is_paging-skip.
+**********************************************************************
+  read table it_filter_select_options into ls_filter_select_option with key property = 'OBJNR'.
+  if sy-subrc <> 0.
+    if (  lv_top is initial or lv_top = 0 ) and ( lv_skip is initial or lv_skip = 0 ).
+      lv_top = 500.
+    endif.
+  endif.
+  open cursor with hold lv_cursor
+  for select * from rpsco
+  where objnr IN ls_filter_select_option-select_options order by primary key.
+  " Skip Records (simulate OFFSET)
+  DO lv_skip TIMES.
+    FETCH NEXT CURSOR lv_cursor INTO ls_rpsco.
+    IF sy-subrc <> 0.
+      EXIT.
+    ENDIF.
+  ENDDO.
+
+  "Fetch TOP n records
+  FETCH NEXT CURSOR LV_CURSOR
+  INTO TABLE LT_RPSCO
+  PACKAGE SIZE lv_top .
+  CLOSE CURSOR LV_CURSOR.
+
+  "Preparing OData Responce table.
+  LOOP AT LT_RPSCO ASSIGNING <LFS_RPSCO>.
+    CLEAR LS_RPSCO.
+    MOVE-CORRESPONDING <LFS_RPSCO> to LS_RPSCO.
+    append LS_RPSCO to ET_ENTITYSET.
+    ENDLOOP.
+endmethod.
