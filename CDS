@@ -1,0 +1,43 @@
+@AbapCatalog.viewEnhancementCategory: [ #NONE ]
+
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+
+@EndUserText.label: 'CDS views expose association'
+
+@Metadata.ignorePropagatedAnnotations: true
+
+@UI.headerInfo: {
+  typeName: 'Flight',
+  typeNamePlural: 'Flights',
+  title: { type: #STANDARD, value: 'AirlineCode' }
+}
+define view entity ZI_FlightWithAirline
+  as select from sflight
+association [1..1] to scarr as _Airline on $projection.AirlineCode = _Airline.carrid
+{
+  @UI.facet: [{ id: 'Flight', purpose: #STANDARD, type: #IDENTIFICATION_REFERENCE, label: 'Flight Details', position: 10 }]
+
+  @UI.identification: [{ position: 10 }]
+  @UI.lineItem: [{ position: 10 }]
+  key carrid    as AirlineCode,
+
+  @UI.identification: [{ position: 20 }]
+  @UI.lineItem: [{ position: 20 }]
+  key connid    as ConnectionNumber,
+
+  @UI.identification: [{ position: 30 }]
+  @UI.lineItem: [{ position: 30 }]
+  key fldate    as FlightDate,
+
+  @Semantics.amount.currencyCode: 'CurrencyCode'
+  @UI.identification: [{ position: 40 }]
+  @UI.lineItem: [{ position: 40 }]
+  price     as Price,
+
+  currency  as CurrencyCode,
+  seatsmax  as SeatsMax,
+  seatsocc  as SeatsOccupied,
+  seatsmax - seatsocc as SeatsAvailable,
+
+  _Airline
+}
