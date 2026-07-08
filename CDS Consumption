@@ -1,0 +1,16 @@
+*&---------------------------------------------------------------------*
+*& Report zcds_consuming_01
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zcds_consuming_01.
+
+PARAMETERS p_amt TYPE waers.
+SELECT
+  FROM ZI_ActiveFlight( p_curry = @p_amt )
+  FIELDS Aircode as air_code
+  INTO TABLE @DATA(lt_flights).
+
+IF sy-subrc = 0.
+  cl_demo_output=>display( lt_flights ).
+ENDIF.
