@@ -1,0 +1,75 @@
+@AbapCatalog.viewEnhancementCategory: [ #NONE ] -->This CDS view cannot be enhanced using CDS View Extension.
+@AccessControl.authorizationCheck: #NOT_REQUIRED -->No authorization check will be performed when reading this CDS.
+@EndUserText.label: 'Connection View CDS DATA model'-->Friendly name of the CDS displayed to users.
+@Metadata.ignorePropagatedAnnotations: true -->Ignore annotations coming from underlying tables/views.
+@ObjectModel.usageType: { -->echnical information about the CDS.
+                         serviceQuality: #X, -->#X = High-quality service
+                         sizeCategory: #S,  -->#S = Small data volume
+                         dataClass: #MIXED  -->#MIXED = Mixed transactional/master data
+                         } 
+                         
+
+@UI.headerInfo: { typeName: 'Connection', typeNamePlural: 'Connections' } -->Fiori Object Page header will show:
+
+define view entity ZI_CONNECTION_01 -->Creating CDS View Entity named ZI_CONNECTION_01.
+  as select from /dmo/connection as connection -->Read data from /DMO/CONNECTION table.
+
+  association [1..*] to ZI_FLIGHT_R_01 as _flight  on  $projection.CarrierId    = _flight.CarrierId -->One Connection can have multiple Flights.
+                                                   and $projection.ConnectionId = _flight.ConnectionId
+  association [1]    to ZI_Carrier_R   as _airline on  $projection.CarrierId = _airline.CarrierId -->Each connection belongs to exactly one airline.
+
+
+{
+      @Search.defaultSearchElement: true
+      @UI.facet: [ { id: 'Connection',
+                     purpose: #STANDARD,
+                     type: #IDENTIFICATION_REFERENCE,
+                     position: 10,
+                     label: 'Connection Details' },
+                   { id: 'Flight',
+                     purpose: #STANDARD,
+                     type: #LINEITEM_REFERENCE,
+                     position: 20,
+                     label: 'Flight Details',
+                     targetElement: '_flight' }
+                       ] //added association to facet
+      @UI.identification: [ { position: 10 } ] -->➡️ Show on Object Page Details section.
+      @UI.lineItem: [ { position: 10, label: 'Airline' } ]-->Displays this field on the Fiori Object Page (Details screen) in the Identification section, and position: 10 controls its display order.
+      @ObjectModel.text.association: '_airline'
+  key carrier_id      as CarrierId,
+
+      @Search.defaultSearchElement: true
+      @UI.identification: [ { position: 20 } ]
+      @UI.lineItem: [ { position: 20 } ]
+  key connection_id   as ConnectionId,
+
+      @Search.defaultSearchElement: true
+      @UI.identification: [ { position: 30, label: 'Departure Airport ID' } ]
+      @UI.lineItem: [ { position: 30, label: 'Departure Airport ID' } ]
+      @UI.selectionField: [ { position: 10 } ]
+      airport_from_id as AirportFromId,
+
+      @EndUserText.label: 'Destination Airport ID'
+      @Search.defaultSearchElement: true
+      @UI.identification: [ { position: 40 } ]
+      @UI.lineItem: [ { position: 40 } ]
+      @UI.selectionField: [ { position: 20 } ]
+      airport_to_id   as AirportToId,
+
+      @UI.identification: [ { position: 50 } ]
+      @UI.lineItem: [ { position: 50, label: 'Departure Time' } ]
+      departure_time  as DepartureTime,
+
+      @UI.identification: [ { position: 60 } ]
+      @UI.lineItem: [ { position: 60, label: 'Arrival Time' } ]
+      arrival_time    as ArrivalTime,
+
+      @Semantics.quantity.unitOfMeasure: 'DistanceUnit'
+      @UI.identification: [ { position: 70 } ]
+      distance        as Distance,
+
+      distance_unit   as DistanceUnit,
+
+      _flight, --> association  
+      _airline // association
+}
