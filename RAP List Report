@@ -6,11 +6,11 @@
                          serviceQuality: #X, -->#X = High-quality service
                          sizeCategory: #S,  -->#S = Small data volume
                          dataClass: #MIXED  -->#MIXED = Mixed transactional/master data
-                         } 
-                         
+                         }
+
 
 @UI.headerInfo: { typeName: 'Connection', typeNamePlural: 'Connections' } -->Fiori Object Page header will show:
-
+@Search.searchable: true -->This CDS view is searchable in Fiori apps.
 define view entity ZI_CONNECTION_01 -->Creating CDS View Entity named ZI_CONNECTION_01.
   as select from /dmo/connection as connection -->Read data from /DMO/CONNECTION table.
 
@@ -20,7 +20,7 @@ define view entity ZI_CONNECTION_01 -->Creating CDS View Entity named ZI_CONNECT
 
 
 {
-      @Search.defaultSearchElement: true
+
       @UI.facet: [ { id: 'Connection',
                      purpose: #STANDARD,
                      type: #IDENTIFICATION_REFERENCE,
@@ -36,6 +36,7 @@ define view entity ZI_CONNECTION_01 -->Creating CDS View Entity named ZI_CONNECT
       @UI.identification: [ { position: 10 } ] -->➡️ Show on Object Page Details section.
       @UI.lineItem: [ { position: 10, label: 'Airline' } ]-->Displays this field on the Fiori Object Page (Details screen) in the Identification section, and position: 10 controls its display order.
       @ObjectModel.text.association: '_airline'
+      @Search.defaultSearchElement: true
   key carrier_id      as CarrierId,
 
       @Search.defaultSearchElement: true
@@ -47,6 +48,7 @@ define view entity ZI_CONNECTION_01 -->Creating CDS View Entity named ZI_CONNECT
       @UI.identification: [ { position: 30, label: 'Departure Airport ID' } ]
       @UI.lineItem: [ { position: 30, label: 'Departure Airport ID' } ]
       @UI.selectionField: [ { position: 10 } ]
+      @Consumption.valueHelpDefinition: [{ entity:{name: 'ZI_airport_VH', element: 'AirportId' } }]
       airport_from_id as AirportFromId,
 
       @EndUserText.label: 'Destination Airport ID'
@@ -54,6 +56,7 @@ define view entity ZI_CONNECTION_01 -->Creating CDS View Entity named ZI_CONNECT
       @UI.identification: [ { position: 40 } ]
       @UI.lineItem: [ { position: 40 } ]
       @UI.selectionField: [ { position: 20 } ]
+      // @Consumption.valueHelpDefinition: [{ entity:{name: 'ZI_airport_VH', element: 'AirportId' } }]
       airport_to_id   as AirportToId,
 
       @UI.identification: [ { position: 50 } ]
@@ -69,7 +72,8 @@ define view entity ZI_CONNECTION_01 -->Creating CDS View Entity named ZI_CONNECT
       distance        as Distance,
 
       distance_unit   as DistanceUnit,
-
-      _flight, --> association  
-      _airline // association
+      @Search.defaultSearchElement: true
+      _flight, --> association
+      @Search.defaultSearchElement: true
+      _airline --> association
 }
