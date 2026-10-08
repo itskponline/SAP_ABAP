@@ -24,7 +24,7 @@ DATA: END OF dthead1.
 DATA :lv_message TYPE string.
 
 DATA: g_text(125).
-DATA: var(160) VALUE 'http://api.smscountry.com/SMSCwebservice_bulk.aspx?User=finolexind&passwd=Finolex@123$&mobilenumber='.
+DATA: var(160) VALUE ''.
 DATA: var1(9)  VALUE  '&message='.
 DATA: url1(65535).
 DATA: var2(30)  VALUE '&sid=FILIND&mtype=N&DR=Y'.
